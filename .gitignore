@@ -1,0 +1,47 @@
+# JavaScript / Vite
+node_modules/
+dist/
+*.local
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Flutter / Dart
+game/.dart_tool/
+game/.packages
+game/.flutter-plugins
+game/.flutter-plugins-dependencies
+game/.flutter_tool_state
+game/build/
+game/.pub-cache/
+game/android/.gradle/
+game/android/app/debug/
+game/android/app/profile/
+game/android/app/release/
+game/ios/Pods/
+game/ios/.symlinks/
+game/ios/Flutter/ephemeral/
+game/macos/Pods/
+game/macos/Flutter/ephemeral/
+game/windows/flutter/ephemeral/
+game/linux/flutter/ephemeral/
+
+# IDE and OS files
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local environment and generated secrets
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+
+# Tool-specific local files
+.impeccable/review/
+.impeccable/config.local.json
