@@ -26,3 +26,4 @@ flutter:
   assets:
     - assets/content/content.json
     - assets/cards/
+    - assets/ui/

@@ -4,7 +4,7 @@
   "phases": [
     {
       "id": "rebellion",
-      "name": "Rebellion Persistence Test",
+      "name": "Rebellion",
       "description": "A resistance becomes a movement.",
       "order": 0,
       "cards": []
@@ -67,7 +67,8 @@
       "value": 62,
       "min": 0,
       "max": 100,
-      "color": "#e6b85c"
+      "color": "#e6b85c",
+      "lockedPhases": []
     },
     {
       "id": "legitimacy",
@@ -76,7 +77,8 @@
       "value": 44,
       "min": 0,
       "max": 100,
-      "color": "#77b7a6"
+      "color": "#77b7a6",
+      "lockedPhases": []
     },
     {
       "id": "military",
@@ -85,7 +87,10 @@
       "value": 58,
       "min": 0,
       "max": 100,
-      "color": "#d88373"
+      "color": "#d88373",
+      "lockedPhases": [
+        "rebellion"
+      ]
     },
     {
       "id": "money",
@@ -94,7 +99,10 @@
       "value": 35,
       "min": 0,
       "max": 100,
-      "color": "#bda1d2"
+      "color": "#bda1d2",
+      "lockedPhases": [
+        "rebellion"
+      ]
     },
     {
       "id": "nobility",
@@ -103,7 +111,11 @@
       "value": 72,
       "min": 0,
       "max": 100,
-      "color": "#e6b85c"
+      "color": "#e6b85c",
+      "lockedPhases": [
+        "rebellion",
+        "fall_of_the_government"
+      ]
     },
     {
       "id": "religion",
@@ -112,7 +124,11 @@
       "value": 48,
       "min": 0,
       "max": 100,
-      "color": "#80a9d1"
+      "color": "#80a9d1",
+      "lockedPhases": [
+        "rebellion",
+        "fall_of_the_government"
+      ]
     },
     {
       "id": "factions",
@@ -121,7 +137,12 @@
       "value": 51,
       "min": 0,
       "max": 100,
-      "color": "#d88373"
+      "color": "#d88373",
+      "lockedPhases": [
+        "rebellion",
+        "fall_of_the_government",
+        "revolution"
+      ]
     },
     {
       "id": "food",
@@ -130,7 +151,13 @@
       "value": 66,
       "min": 0,
       "max": 100,
-      "color": "#77b7a6"
+      "color": "#77b7a6",
+      "lockedPhases": [
+        "rebellion",
+        "fall_of_the_government",
+        "revolution",
+        "civil_war"
+      ]
     }
   ],
   "characters": [
@@ -192,9 +219,7 @@
       "description": "The old houses test the new government for weakness.",
       "phase": "kingdom",
       "active": true,
-      "cards": [
-        "card_noble_demand"
-      ],
+      "cards": [],
       "conditions": [
         {
           "type": "stat",
@@ -210,9 +235,7 @@
       "description": "A rebellion becomes a public break with the old regime.",
       "phase": "revolution",
       "active": false,
-      "cards": [
-        "card_secret_letters"
-      ],
+      "cards": [],
       "conditions": [
         {
           "type": "stat",
@@ -225,33 +248,23 @@
   ],
   "cards": [
     {
-      "id": "card_new_4",
-      "title": "DO or DIE",
-      "artwork": "assets/cards/temp.png",
-      "situation": "do what?",
+      "id": "card_new_1789203384012",
+      "title": "رهبر رقیب",
+      "artwork": "",
+      "situation": "شخص دیگری میان مردم بسیار محبوب شده و ادعا می‌کند تو نماینده واقعی شورش نیستی.",
       "notes": "",
       "phase": "rebellion",
       "dayFrom": 1,
-      "tags": [],
+      "tags": [
+        "draft"
+      ],
       "priority": 5,
       "repeatable": false,
+      "conditions": [],
       "choices": [
         {
-          "id": "choice_left_1789123564168",
-          "text": "eat",
-          "conditions": [],
-          "effects": [
-            {
-              "type": "stat",
-              "id": "popularity",
-              "operation": "add",
-              "value": 5
-            }
-          ]
-        },
-        {
-          "id": "choice_right_1789123564168",
-          "text": "fight",
+          "id": "choice_left_1789203384012",
+          "text": "شورش ما برای آزادیه بذارین رف بزنه",
           "conditions": [],
           "effects": [
             {
@@ -262,131 +275,124 @@
             },
             {
               "type": "stat",
-              "id": "military",
+              "id": "legitimacy",
               "operation": "add",
               "value": 5
             }
-          ]
-        }
-      ],
-      "dayUntil": 50
-    },
-    {
-      "id": "card_noble_demand",
-      "title": "The Noble Demand",
-      "artwork": "assets/cards/noble_demand.png",
-      "situation": "A delegation arrives before dawn. They offer recognition, but only if the old houses keep their privileges.",
-      "notes": "This card should teach the author how a delayed compromise resurfaces.",
-      "phase": "kingdom",
-      "event": "event_noble_conspiracy",
-      "dayFrom": 120,
-      "tags": [
-        "nobility",
-        "consequence"
-      ],
-      "priority": 7,
-      "repeatable": false,
-      "choices": [
-        {
-          "id": "choice_accept_privileges",
-          "text": "Keep their privileges",
-          "conditions": [],
-          "effects": [
-            {
-              "type": "stat",
-              "id": "legitimacy",
-              "operation": "add",
-              "value": -8
-            },
-            {
-              "type": "stat",
-              "id": "nobility",
-              "operation": "add",
-              "value": 14
-            },
-            {
-              "type": "flag",
-              "operation": "set",
-              "value": "nobility_entrenched"
-            }
-          ]
+          ],
+          "title": "به او اعتبار بده"
         },
         {
-          "id": "choice_refuse_houses",
-          "text": "Refuse the old houses",
-          "conditions": [
-            {
-              "type": "stat",
-              "id": "military",
-              "operator": "gte",
-              "value": 55
-            }
-          ],
+          "id": "choice_right_1789203384012",
+          "text": "دو رهبر یعنی دو شورش.",
+          "conditions": [],
           "effects": [
             {
               "type": "stat",
               "id": "popularity",
               "operation": "add",
-              "value": 8
+              "value": -5
             },
             {
               "type": "stat",
               "id": "legitimacy",
               "operation": "add",
-              "value": -4
-            },
-            {
-              "type": "event",
-              "operation": "start",
-              "value": "event_noble_conspiracy",
-              "delayed": 7
+              "value": -5
             }
-          ]
+          ],
+          "title": "کنار بزنش."
         }
       ]
     },
     {
-      "id": "card_secret_letters",
-      "title": "Strange Letters",
-      "artwork": "assets/cards/strange_letters.png",
-      "situation": "Sorin brings a bundle of letters sealed with the mark of three merchant houses. They want a promise before they move their money.",
-      "notes": "A small promise now can become a government crisis later.",
-      "phase": "revolution",
-      "dayFrom": 18,
+      "id": "card_new_1789203312063",
+      "title": "اعتراض علیه تو",
+      "artwork": "",
+      "situation": "گروهی از مردم در خیابان علیه خودت شعار می‌دهند. می‌گویند تو بیش از حد قدرت گرفته‌ای.",
+      "notes": "",
+      "phase": "rebellion",
+      "dayFrom": 1,
       "tags": [
-        "merchants",
-        "delayed"
+        "draft"
       ],
       "priority": 5,
       "repeatable": false,
+      "conditions": [],
       "choices": [
         {
-          "id": "choice_accept_merchants",
-          "text": "Promise them a monopoly",
+          "id": "choice_left_1789203312063",
+          "text": "اگر آزادی فقط برای موافقان ماست، آزادی نیست.",
           "conditions": [],
           "effects": [
             {
               "type": "stat",
-              "id": "money",
+              "id": "popularity",
               "operation": "add",
-              "value": 30
+              "value": 5
             },
             {
-              "type": "flag",
-              "operation": "set",
-              "value": "merchant_monopoly_promised"
-            },
-            {
-              "type": "card",
-              "operation": "unlock",
-              "value": "card_merchant_demand",
-              "delayed": 60
+              "type": "stat",
+              "id": "legitimacy",
+              "operation": "add",
+              "value": -5
             }
-          ]
+          ],
+          "title": "اجازه بده اعتراض کنند."
         },
         {
-          "id": "choice_refuse_merchants",
-          "text": "Refuse to be bought",
+          "id": "choice_right_1789203312063",
+          "text": "این زمانِ اختلاف نیست؛ حکومت منتظر همین شکاف است.",
+          "conditions": [],
+          "effects": [
+            {
+              "type": "stat",
+              "id": "popularity",
+              "operation": "add",
+              "value": -5
+            }
+          ],
+          "title": "متفرقشان کنید"
+        }
+      ]
+    },
+    {
+      "id": "card_new_1789203196033",
+      "title": "خانواده‌ی یک مقام",
+      "artwork": "",
+      "situation": "مردم خانه‌ی یکی از مقامات حکومت را پیدا کرده‌اند. خودش فرار کرده، اما خانواده‌اش هنوز آنجاست.",
+      "notes": "",
+      "phase": "rebellion",
+      "dayFrom": 1,
+      "tags": [
+        "draft"
+      ],
+      "priority": 5,
+      "repeatable": false,
+      "conditions": [],
+      "choices": [
+        {
+          "id": "choice_left_1789203196033",
+          "text": "جرم یک نفر، جرم خانواده‌اش نیست",
+          "conditions": [],
+          "effects": [
+            {
+              "type": "stat",
+              "id": "popularity",
+              "operation": "add",
+              "value": 5
+            },
+            {
+              "type": "stat",
+              "id": "legitimacy",
+              "operation": "add",
+              "value": -5
+            }
+          ],
+          "title": "از خانواده محافظت کنید"
+        },
+        {
+          "id": "choice_right_1789203196033",
+          "text": "دیگر قرار نیست به جای مردم تصمیم بگیریم.",
           "conditions": [],
           "effects": [
             {
@@ -397,75 +403,262 @@
             },
             {
               "type": "stat",
-              "id": "money",
+              "id": "popularity",
               "operation": "add",
-              "value": -12
+              "value": 10
             }
-          ]
+          ],
+          "title": "بگذار مردم تصمیم بگیرند."
         }
       ]
     },
     {
-      "id": "card_generals_warning",
-      "title": "The General's Warning",
-      "artwork": "assets/cards/generals_warning.png",
-      "situation": "Ardan says the city gates will not hold through another week of hunger. He asks for authority to requisition food.",
-      "notes": "A pressure card with a visible stat trade-off.",
-      "phase": "rebellion",
-      "dayFrom": 7,
+      "id": "card_new_1789203020151",
+      "title": "غارت ها",
+      "artwork": "",
+      "situation": "گروهی از شورشیان یک مغازه را غارت کرده‌اند. صاحب مغازه می‌گوید تمام دارایی‌اش را برای ساختن آن مغازه جمع کرده بود.",
+      "notes": "",
+      "dayFrom": 1,
       "tags": [
-        "army",
-        "food"
+        "draft"
       ],
-      "priority": 9,
+      "priority": 3,
       "repeatable": true,
+      "conditions": [],
       "choices": [
         {
-          "id": "choice_requisition",
-          "text": "Give the army what it needs",
-          "conditions": [
-            {
-              "type": "stat",
-              "id": "military",
-              "operator": "lt",
-              "value": 70
-            }
-          ],
+          "id": "choice_left_1789203020151",
+          "text": "انقلاب بهانه‌ای برای دزدی نیست.",
+          "conditions": [],
           "effects": [
             {
               "type": "stat",
-              "id": "military",
+              "id": "popularity",
               "operation": "add",
-              "value": 10
+              "value": 5
+            },
+            {
+              "type": "stat",
+              "id": "legitimacy",
+              "operation": "add",
+              "value": 5
+            },
+            {
+              "type": "stat",
+              "id": "money",
+              "operation": "add",
+              "value": -5
             },
             {
               "type": "stat",
               "id": "food",
               "operation": "add",
-              "value": -12
+              "value": -5
             }
-          ]
+          ],
+          "title": "غارتگران را مجازات کنید."
         },
         {
-          "id": "choice_feed_city",
-          "text": "Feed the city first",
+          "id": "choice_right_1789203020151",
+          "text": "این ثروت سال‌ها از همین مردم گرفته شده است.",
           "conditions": [],
           "effects": [
             {
               "type": "stat",
               "id": "popularity",
               "operation": "add",
-              "value": 7
+              "value": 10
             },
             {
               "type": "stat",
-              "id": "military",
+              "id": "legitimacy",
               "operation": "add",
-              "value": -6
+              "value": -5
+            },
+            {
+              "type": "stat",
+              "id": "money",
+              "operation": "add",
+              "value": 5
+            },
+            {
+              "type": "stat",
+              "id": "food",
+              "operation": "add",
+              "value": 5
             }
-          ]
+          ],
+          "title": "بگذارید مردم بردارند."
         }
-      ]
+      ],
+      "dayUntil": 1000
+    },
+    {
+      "id": "card_new_1789202949821",
+      "title": "اعلامیه دروغین",
+      "artwork": "",
+      "situation": "می‌توانی اعلامیه‌ای منتشر کنی که در آن جنایات حکومت را فهرست کرده‌ای؛ اما بعضی از ادعاها هنوز ثابت نشده‌اند.",
+      "notes": "",
+      "phase": "rebellion",
+      "dayFrom": 1,
+      "tags": [
+        "draft"
+      ],
+      "priority": 4,
+      "repeatable": false,
+      "conditions": [],
+      "choices": [
+        {
+          "id": "choice_left_1789202949821",
+          "text": "مردم باید حقیقت را بدانند، حتی اگر همه‌اش ثابت نشده باشد.",
+          "conditions": [],
+          "effects": [
+            {
+              "type": "stat",
+              "id": "legitimacy",
+              "operation": "add",
+              "value": 5
+            }
+          ],
+          "title": "منتشرش کن."
+        },
+        {
+          "id": "choice_right_1789202949821",
+          "text": "دروغ گفتن برای شکست یک دروغگو، پیروزی نیست.",
+          "conditions": [],
+          "effects": [
+            {
+              "type": "stat",
+              "id": "popularity",
+              "operation": "add",
+              "value": 5
+            }
+          ],
+          "title": "صبر کن"
+        }
+      ],
+      "dayUntil": 100
+    },
+    {
+      "id": "card_new_1789199990890",
+      "title": "وجدان مبارزه",
+      "artwork": "",
+      "situation": "بعضی از مردم بخاطر کشتن سربازهای ارتش به شما اعتراض دارن! میگن اون ها هموطن‌هامون هستند و نباید بکشیمشون",
+      "notes": "",
+      "phase": "rebellion",
+      "dayFrom": 1,
+      "tags": [
+        "human"
+      ],
+      "priority": 5,
+      "repeatable": false,
+      "conditions": [
+        {
+          "type": "card",
+          "id": "card_new_1789198345333",
+          "operator": "completed"
+        }
+      ],
+      "choices": [
+        {
+          "id": "choice_left_1789199990890",
+          "text": "آن‌ها سربازند، نه دشمن. تا وقتی تسلیم نشده‌اند، راه دیگری پیدا کنید.",
+          "conditions": [],
+          "effects": [
+            {
+              "type": "stat",
+              "id": "popularity",
+              "operation": "add",
+              "value": 5
+            },
+            {
+              "type": "stat",
+              "id": "legitimacy",
+              "operation": "add",
+              "value": 5
+            }
+          ],
+          "title": "کشتن را متوقف کنید"
+        },
+        {
+          "id": "choice_right_1789199990890",
+          "text": "اگر برای حکومت سلاح برداشته‌اند، با مردم طرف نیستیم؛ با دشمن طرفیم.",
+          "conditions": [],
+          "effects": [
+            {
+              "type": "stat",
+              "id": "popularity",
+              "operation": "add",
+              "value": -5
+            },
+            {
+              "type": "stat",
+              "id": "legitimacy",
+              "operation": "add",
+              "value": -5
+            }
+          ],
+          "title": "سرباز، سرباز است"
+        }
+      ],
+      "dayUntil": 100
+    },
+    {
+      "id": "card_new_1789198345333",
+      "title": "مبارزه و فرار",
+      "artwork": "",
+      "situation": "ارتش برای مقابله با ما به صف شده",
+      "notes": "",
+      "phase": "rebellion",
+      "dayFrom": 1,
+      "tags": [
+        "fight"
+      ],
+      "priority": 5,
+      "repeatable": false,
+      "conditions": [],
+      "choices": [
+        {
+          "id": "choice_left_1789198345333",
+          "text": "زنده موندن مهمتره",
+          "conditions": [],
+          "effects": [
+            {
+              "type": "stat",
+              "id": "popularity",
+              "operation": "add",
+              "value": -5
+            }
+          ],
+          "title": "پراکنده بشید"
+        },
+        {
+          "id": "choice_right_1789198345333",
+          "text": "آن‌ها به روی مردم اسلحه کشیده‌اند",
+          "conditions": [],
+          "effects": [
+            {
+              "type": "stat",
+              "id": "legitimacy",
+              "operation": "add",
+              "value": -5
+            },
+            {
+              "type": "stat",
+              "id": "popularity",
+              "operation": "add",
+              "value": 5
+            },
+            {
+              "type": "card",
+              "operation": "trigger",
+              "value": "card_new_1789199990890"
+            }
+          ],
+          "title": "مبارزه کنید"
+        }
+      ],
+      "dayUntil": 100
     }
   ]
 }

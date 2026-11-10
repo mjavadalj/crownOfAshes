@@ -33,3 +33,9 @@ The runtime uses drawn ornamental metalwork. The editor preview is a simpler CSS
 ## Verification handoff
 
 The user will test the implementation. Automated Flutter verification was not completed: SDK/cache access was unavailable, and the existing package configuration references unavailable dependencies. No gameplay test pass is claimed.
+
+## Card construction refinement
+
+The outer silhouette now follows rounded physical card stock, with three inset metal rails and substantial mirrored engraved corner caps. Choice buttons retain their beveled shapes. A separate doubled brass sill divides the illustration from the narrative, with a pointed central ornament. The illustration ends crisply against this sill instead of fading into the narrative.
+
+The narrative panel uses the generated soot-black rag-paper material in `game/assets/ui/card-paper.png`, shared by Flutter and the editor preview. Fine organic fibers and umber mottling add tactile variation under the text. Corner and finial SVGs are authored UI ornaments for the editor; Flutter draws their corresponding geometry directly. The artwork and authored content are unchanged. Testing remains with the user.

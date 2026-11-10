@@ -3,6 +3,10 @@
         android:label="crown_of_ashes_game"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- Some emulator GPU drivers render the Impeller OpenGLES surface black. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

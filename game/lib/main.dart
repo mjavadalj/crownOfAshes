@@ -12,13 +12,49 @@ const _parchment = Color(0xFFE1C39C);
 const _mutedParchment = Color(0xFFBCA58A);
 const _brass = Color(0xFFAB8456);
 const _oxblood = Color(0xFF8F3039);
+const _cardFrameInset = 14.0;
 
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final content = await ContentRepository.load();
-  final savedState = await GameState.load(content);
-  runApp(CrownOfAshesApp(content: content, initialState: savedState));
+  try {
+    final content = await ContentRepository.load();
+    final savedState = await GameState.load(content);
+    runApp(CrownOfAshesApp(content: content, initialState: savedState));
+  } catch (error, stackTrace) {
+    // Keep a startup failure visible instead of leaving the native splash
+    // window looking like a rendering failure.
+    debugPrint('Crown of Ashes failed during startup: $error');
+    debugPrintStack(stackTrace: stackTrace);
+    runApp(StartupErrorApp(error: error));
+  }
+}
+
+class StartupErrorApp extends StatelessWidget {
+  const StartupErrorApp({required this.error, super.key});
+
+  final Object error;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark(),
+      home: Scaffold(
+        backgroundColor: _ink,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: SelectableText(
+              'CROWN OF ASHES\n\nUnable to load the game data.\n\n$error',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _parchment, fontSize: 16),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class CrownOfAshesApp extends StatelessWidget {
@@ -76,11 +112,17 @@ class _GameHomeState extends State<GameHome> {
     _cardIndex = _findFirstAvailableIndex();
   }
 
+  bool _canDraw(GameCard card) =>
+      card.isAvailable(_state) &&
+      (card.repeatable || !_state.seenCards.contains(card.id));
+
   int _findFirstAvailableIndex() {
-    final index = widget.content.cards.indexWhere(
-      (card) => card.isAvailable(_state),
-    );
-    return index == -1 ? 0 : index;
+    final candidates = widget.content.cards
+        .where(_canDraw)
+        .toList()
+      ..sort((a, b) => b.priority.compareTo(a.priority));
+    if (candidates.isEmpty) return 0;
+    return widget.content.cards.indexOf(candidates.first);
   }
 
   GameCard get _currentCard {
@@ -96,11 +138,14 @@ class _GameHomeState extends State<GameHome> {
   }
 
   Future<void> _onDragEnd(DragEndDetails details) async {
-    if (_isChoosing || _dragX.abs() < 90) {
+    final fling = details.velocity.pixelsPerSecond.dx;
+    final hasCommit = _dragX.abs() >= 90 || fling.abs() >= 700;
+    if (_isChoosing || !hasCommit) {
       setState(() => _dragX = 0);
       return;
     }
-    await _choose(_dragX < 0 ? 0 : 1);
+    final direction = _dragX.abs() >= 90 ? _dragX : fling;
+    await _choose(direction < 0 ? 0 : 1);
   }
 
   Future<void> _choose(int choiceIndex) async {
@@ -116,7 +161,10 @@ class _GameHomeState extends State<GameHome> {
     });
     await Future<void>.delayed(const Duration(milliseconds: 260));
     final next = _state.copy()..day += 1;
+    next.queuedCardId = null;
+    next.completedCards.add(card.id);
     next.apply(card.choices[choiceIndex].effects, widget.content);
+    if (!card.repeatable) next.seenCards.add(card.id);
     await next.persist();
     if (!mounted) return;
     setState(() {
@@ -128,12 +176,17 @@ class _GameHomeState extends State<GameHome> {
   }
 
   int _findNextCardIndex() {
-    final count = widget.content.cards.length;
-    for (var offset = 1; offset <= count; offset++) {
-      final candidate = (_cardIndex + offset) % count;
-      if (widget.content.cards[candidate].isAvailable(_state)) return candidate;
+    final queuedId = _state.queuedCardId;
+    if (queuedId != null && !_state.lockedCards.contains(queuedId)) {
+      final queuedIndex = widget.content.cards.indexWhere((card) => card.id == queuedId);
+      if (queuedIndex >= 0) return queuedIndex;
     }
-    return _findFirstAvailableIndex();
+    final candidates = widget.content.cards
+        .where(_canDraw)
+        .toList()
+      ..sort((a, b) => b.priority.compareTo(a.priority));
+    if (candidates.isEmpty) return _findFirstAvailableIndex();
+    return widget.content.cards.indexOf(candidates.first);
   }
 
   void _resetRun() async {
@@ -173,6 +226,7 @@ class _GameHomeState extends State<GameHome> {
                           card: _currentCard,
                           state: _state,
                           dragX: _dragX,
+                          isChoosing: _isChoosing,
                           lastChoice: _lastChoice,
                           onDragUpdate: _onDragUpdate,
                           onDragEnd: _onDragEnd,
@@ -213,7 +267,7 @@ class _Header extends StatelessWidget {
               'CROWN OF ASHES',
               style: TextStyle(
                 color: _brass,
-                fontSize: 11,
+                fontSize: 13,
                 letterSpacing: 3.2,
                 fontWeight: FontWeight.w700,
               ),
@@ -222,8 +276,9 @@ class _Header extends StatelessWidget {
             Text(
               'THE RECORD OF A REBELLION',
               style: TextStyle(
-                color: _mutedParchment.withOpacity(.72),
-                fontSize: 9,
+                color: _parchment.withValues(alpha: .9),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
                 letterSpacing: 1.6,
               ),
             ),
@@ -238,7 +293,8 @@ class _Header extends StatelessWidget {
               style: const TextStyle(
                 color: _parchment,
                 fontFamily: 'monospace',
-                fontSize: 11,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
                 letterSpacing: 1.2,
               ),
             ),
@@ -247,7 +303,8 @@ class _Header extends StatelessWidget {
               displayName(state.phase),
               style: const TextStyle(
                 color: _brass,
-                fontSize: 10,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
                 letterSpacing: 1.5,
               ),
             ),
@@ -273,6 +330,7 @@ class _CardStage extends StatelessWidget {
     required this.card,
     required this.state,
     required this.dragX,
+    required this.isChoosing,
     required this.lastChoice,
     required this.onDragUpdate,
     required this.onDragEnd,
@@ -282,6 +340,7 @@ class _CardStage extends StatelessWidget {
   final GameCard card;
   final GameState state;
   final double dragX;
+  final bool isChoosing;
   final String? lastChoice;
   final ValueChanged<DragUpdateDetails> onDragUpdate;
   final ValueChanged<DragEndDetails> onDragEnd;
@@ -297,7 +356,7 @@ class _CardStage extends StatelessWidget {
             onHorizontalDragUpdate: onDragUpdate,
             onHorizontalDragEnd: onDragEnd,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 240),
+              duration: isChoosing ? const Duration(milliseconds: 210) : Duration.zero,
               curve: Curves.easeOutCubic,
               transform:
                   Matrix4.identity()
@@ -331,8 +390,9 @@ class _CardStage extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 style: TextStyle(
-                  color: _mutedParchment.withOpacity(.55),
-                  fontSize: 8,
+                  color: _parchment.withValues(alpha: .82),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: 1.1,
                 ),
               ),
@@ -364,26 +424,42 @@ class _NarrativeCard extends StatelessWidget {
   Widget build(BuildContext context) => CustomPaint(
     foregroundPainter: const ReliquaryFrame(),
     child: Container(
-      color: _coal,
-      padding: const EdgeInsets.all(11),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(color: _coal, borderRadius: BorderRadius.circular(18)),
+      padding: const EdgeInsets.all(_cardFrameInset),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // Short screens scroll the whole artifact; narrative and choices never truncate.
-          final height =
-              constraints.maxHeight < 560 ? 560.0 : constraints.maxHeight;
-          return SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: height),
-              child: Column(
-                children: [
-                  SizedBox(height: height * .53, child: _Artwork(card: card)),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
-                    child: _CardCopy(card: card, state: state),
+          final height = constraints.hasBoundedHeight ? constraints.maxHeight : 560.0;
+          return Column(
+            children: [
+              SizedBox(height: height * .45, child: _Artwork(card: card)),
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: _coal,
+                    image: DecorationImage(image: AssetImage('assets/ui/card-paper.png'), fit: BoxFit.cover),
                   ),
-                ],
+                  child: CustomPaint(
+                    foregroundPainter: const ArtworkSeam(),
+                    child: LayoutBuilder(
+                      builder: (context, copyConstraints) => FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.topCenter,
+                        clipBehavior: Clip.hardEdge,
+                        child: SizedBox(
+                          width: copyConstraints.maxWidth,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(0, 30, 0, 28),
+                            child: _CardCopy(card: card, state: state),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
+            ],
           );
         },
       ),
@@ -419,8 +495,8 @@ class _Artwork extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.transparent, Colors.transparent, _coal],
-            stops: [0, .78, 1],
+            colors: [Colors.transparent, Colors.transparent, Color(0x44080708)],
+            stops: [0, .9, 1],
           ),
         ),
       ),
@@ -434,64 +510,70 @@ class _CardCopy extends StatelessWidget {
   final GameState state;
   @override
   Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Text(
-        card.title.toUpperCase(),
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          color: _mutedParchment,
-          fontSize: 12,
-          letterSpacing: 1.8,
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        child: Column(
+          children: [
+            Text(
+              card.title.toUpperCase(),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: _mutedParchment,
+                fontSize: 12,
+                letterSpacing: 1.8,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              card.situation,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _parchment, fontSize: 20, height: 1.32),
+            ),
+            const SizedBox(height: 12),
+            const SizedBox(
+              height: 26,
+              width: double.infinity,
+              child: CustomPaint(painter: ReliquaryDivider()),
+            ),
+          ],
         ),
-      ),
-      const SizedBox(height: 12),
-      Text(
-        card.situation,
-        textAlign: TextAlign.center,
-        style: const TextStyle(color: _parchment, fontSize: 20, height: 1.32),
-      ),
-      const SizedBox(height: 12),
-      const SizedBox(
-        height: 26,
-        width: double.infinity,
-        child: CustomPaint(painter: ReliquaryDivider()),
       ),
       const SizedBox(height: 12),
       LayoutBuilder(
         builder: (context, constraints) {
           final choices = List.generate(
             card.choices.length.clamp(0, 2),
-            (index) => _ChoiceButton(
+            (index) => _ChoiceColumn(
+              title: card.choices[index].title.trim().isEmpty
+                  ? 'CHOICE ${index == 0 ? 'A' : 'B'}'
+                  : card.choices[index].title,
               choice: card.choices[index],
               label: index == 0 ? 'A' : 'B',
               color: index == 0 ? _oxblood : _coal,
               state: state,
-              onTap:
-                  () => context
-                      .findAncestorStateOfType<_GameHomeState>()
-                      ?._choose(index),
+              onTap: () => context
+                  .findAncestorStateOfType<_GameHomeState>()
+                  ?._choose(index),
             ),
           );
-          if (constraints.maxWidth < 290 ||
-              MediaQuery.textScalerOf(context).scale(1) > 1.3) {
-            return Column(
-              children: [
-                for (final choice in choices)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: choice,
-                  ),
-              ],
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (var i = 0; i < choices.length; i++) ...[
-                if (i > 0) const SizedBox(width: 10),
-                Expanded(child: choices[i]),
-              ],
-            ],
+          final buttonGroupWidth =
+              (constraints.maxWidth + (_cardFrameInset * 2)) * .9;
+          return Align(
+            alignment: Alignment.center,
+            child: SizedBox(
+              width: buttonGroupWidth,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < choices.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 10),
+                    Expanded(child: choices[i]),
+                  ],
+                ],
+              ),
+            ),
           );
         },
       ),
@@ -517,59 +599,105 @@ class _ChoiceButton extends StatelessWidget {
     final enabled = choice.isAvailable(state);
     return Opacity(
       opacity: enabled ? 1 : .45,
-      child: CustomPaint(
-        foregroundPainter: const ReliquaryFrame(button: true),
-        child: TextButton(
-          onPressed: enabled ? onTap : null,
-          style: ButtonStyle(
-            minimumSize: const WidgetStatePropertyAll(
-              Size(double.infinity, 86),
-            ),
-            padding: const WidgetStatePropertyAll(
-              EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-            ),
-            shape: const WidgetStatePropertyAll(
-              BeveledRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(15)),
+      child: SizedBox(
+        width: double.infinity,
+        height: 92,
+        child: CustomPaint(
+          foregroundPainter: const ReliquaryFrame(button: true),
+          child: TextButton(
+            onPressed: enabled ? onTap : null,
+            style: ButtonStyle(
+              minimumSize: const WidgetStatePropertyAll(Size(double.infinity, 92)),
+              maximumSize: const WidgetStatePropertyAll(Size(double.infinity, 92)),
+              padding: const WidgetStatePropertyAll(
+                EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               ),
-            ),
-            backgroundColor: WidgetStatePropertyAll(
-              label == 'A' ? const Color(0xFF301315) : const Color(0xFF121113),
-            ),
-            overlayColor: WidgetStateProperty.resolveWith(
-              (states) =>
-                  states.contains(WidgetState.focused)
-                      ? _brass.withValues(alpha: .3)
-                      : _brass.withValues(alpha: .12),
-            ),
-            foregroundColor: const WidgetStatePropertyAll(_parchment),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                label == 'A'
-                    ? Icons.local_fire_department_outlined
-                    : Icons.visibility_off_outlined,
-                color: _brass,
-                size: 25,
+              shape: const WidgetStatePropertyAll(
+                BeveledRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(15)),
+                ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
+              backgroundColor: WidgetStatePropertyAll(
+                label == 'A' ? const Color(0xFF301315) : const Color(0xFF121113),
+              ),
+              overlayColor: WidgetStateProperty.resolveWith(
+                (states) =>
+                    states.contains(WidgetState.focused)
+                        ? _brass.withValues(alpha: .3)
+                        : _brass.withValues(alpha: .12),
+              ),
+              foregroundColor: const WidgetStatePropertyAll(_parchment),
+            ),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: SizedBox(
+                width: double.infinity,
                 child: Text(
                   choice.text,
+                  textDirection: TextDirection.rtl,
+                  textAlign: TextAlign.center,
+                  maxLines: 3,
+                  softWrap: true,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontFamily: 'EBGaramond',
-                    fontSize: 17,
+                    fontSize: 15,
                     height: 1.18,
                   ),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+class _ChoiceColumn extends StatelessWidget {
+  const _ChoiceColumn({
+    required this.title,
+    required this.choice,
+    required this.label,
+    required this.color,
+    required this.state,
+    required this.onTap,
+  });
+
+  final String title;
+  final Choice choice;
+  final String label;
+  final Color color;
+  final GameState state;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text(
+        title.toUpperCase(),
+        textAlign: TextAlign.center,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: _parchment,
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.0,
+          height: 1.05,
+        ),
+      ),
+      const SizedBox(height: 8),
+      _ChoiceButton(
+        choice: choice,
+        label: label,
+        color: color,
+        state: state,
+        onTap: onTap,
+      ),
+    ],
+  );
 }
 
 class _SwipeCue extends StatelessWidget {
@@ -587,17 +715,22 @@ class _SwipeCue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => TextButton.icon(
-    onPressed: onTap,
-    icon: Icon(icon, color: color, size: 15),
-    label: Text(
-      label,
-      style: TextStyle(
-        color: color,
-        fontFamily: 'monospace',
-        fontSize: 8,
-        letterSpacing: .7,
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        minimumSize: const Size(0, 0),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
-    ),
+      icon: Icon(icon, color: color, size: 14),
+      label: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontFamily: 'monospace',
+          fontSize: 8,
+          letterSpacing: .7,
+        ),
+      ),
   );
 }
 
@@ -609,31 +742,35 @@ class _StatsStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visible = content.stats.take(4).toList();
-    return Row(
-      children:
-          visible
-              .map(
-                (stat) => Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: _StatCell(
-                      stat: stat,
-                      value: state.stats[stat.id] ?? stat.value,
-                    ),
-                  ),
-                ),
-              )
-              .toList(),
+    final visible = content.stats.take(8).toList();
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: visible.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
+        childAspectRatio: 1.72,
+      ),
+      itemBuilder: (context, index) {
+        final stat = visible[index];
+        return _StatCell(
+          stat: stat,
+          value: state.stats[stat.id] ?? stat.value,
+          locked: stat.lockedPhases.contains(state.phase),
+        );
+      },
     );
   }
 }
 
 class _StatCell extends StatelessWidget {
-  const _StatCell({required this.stat, required this.value});
+  const _StatCell({required this.stat, required this.value, required this.locked});
 
   final GameStat stat;
   final int value;
+  final bool locked;
 
   @override
   Widget build(BuildContext context) {
@@ -641,8 +778,8 @@ class _StatCell extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 7, 8, 8),
       decoration: BoxDecoration(
-        color: _coal,
-        border: Border.all(color: _parchment.withOpacity(.12)),
+        color: locked ? const Color(0xFF151314) : _coal,
+        border: Border.all(color: _parchment.withValues(alpha: locked ? .12 : .22)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -650,36 +787,46 @@ class _StatCell extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  stat.name.toUpperCase(),
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: _mutedParchment.withOpacity(.75),
-                    fontFamily: 'monospace',
-                    fontSize: 7,
-                    letterSpacing: .5,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    stat.name.toUpperCase(),
+                    maxLines: 1,
+                    style: TextStyle(
+                      color: locked ? _mutedParchment.withValues(alpha: .6) : _parchment,
+                      fontFamily: 'monospace',
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: .5,
+                    ),
                   ),
                 ),
               ),
-              Text(
-                '$value',
-                style: const TextStyle(
-                  color: _parchment,
-                  fontFamily: 'monospace',
-                  fontSize: 10,
+              if (locked)
+                Padding(
+                  padding: EdgeInsets.only(right: 4),
+                  child: Icon(
+                    Icons.lock_rounded,
+                    color: _mutedParchment,
+                    size: 12,
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 5),
           ClipRRect(
             borderRadius: BorderRadius.circular(2),
             child: LinearProgressIndicator(
-              minHeight: 3,
+              minHeight: 4,
               value: ratio,
               backgroundColor: _parchment.withOpacity(.10),
               valueColor: AlwaysStoppedAnimation<Color>(
-                stat.id == 'military' ? _oxblood : _brass,
+                locked
+                    ? _mutedParchment.withValues(alpha: .35)
+                    : stat.id == 'military'
+                        ? _oxblood
+                        : _brass,
               ),
             ),
           ),
@@ -699,9 +846,10 @@ class _FooterHint extends StatelessWidget {
     'THE CHOICES OF TODAY ARE THE LAWS OF TOMORROW  ·  ${card.repeatable ? 'RECURRING' : 'ONE-TIME'}',
     textAlign: TextAlign.center,
     style: TextStyle(
-      color: _mutedParchment.withOpacity(.46),
+      color: _mutedParchment.withValues(alpha: .78),
       fontFamily: 'monospace',
-      fontSize: 7,
+      fontSize: 8,
+      fontWeight: FontWeight.w600,
       letterSpacing: 1.0,
     ),
   );
@@ -836,6 +984,7 @@ class GameStat {
     required this.value,
     required this.min,
     required this.max,
+    required this.lockedPhases,
   });
   factory GameStat.fromJson(Map<String, dynamic> json) => GameStat(
     id: json['id'] as String? ?? '',
@@ -843,12 +992,16 @@ class GameStat {
     value: (json['value'] as num? ?? 0).toInt(),
     min: (json['min'] as num? ?? 0).toInt(),
     max: (json['max'] as num? ?? 100).toInt(),
+    lockedPhases: List<String>.from(
+      (json['lockedPhases'] as List<dynamic>? ?? []).map((item) => item.toString()),
+    ),
   );
   final String id;
   final String name;
   final int value;
   final int min;
   final int max;
+  final List<String> lockedPhases;
 }
 
 class GameEvent {
@@ -870,6 +1023,7 @@ class GameCard {
     required this.artwork,
     required this.situation,
     required this.phase,
+    required this.conditions,
     required this.event,
     required this.dayFrom,
     required this.dayUntil,
@@ -882,7 +1036,11 @@ class GameCard {
     title: json['title'] as String? ?? 'Untitled card',
     artwork: json['artwork'] as String? ?? '',
     situation: json['situation'] as String? ?? '',
-    phase: json['phase'] as String? ?? '',
+    phase: json['phase'] as String?,
+    conditions:
+        (json['conditions'] as List<dynamic>? ?? [])
+            .map((item) => Condition.fromJson(item as Map<String, dynamic>))
+            .toList(),
     event: json['event'] as String?,
     dayFrom: (json['dayFrom'] as num? ?? 0).toInt(),
     dayUntil: (json['dayUntil'] as num?)?.toInt(),
@@ -898,7 +1056,8 @@ class GameCard {
     title: 'No eligible card',
     artwork: '',
     situation: 'The authored deck has no card available for this state.',
-    phase: '',
+    phase: null,
+    conditions: [],
     event: null,
     dayFrom: 0,
     dayUntil: null,
@@ -911,7 +1070,8 @@ class GameCard {
   final String title;
   final String artwork;
   final String situation;
-  final String phase;
+  final String? phase;
+  final List<Condition> conditions;
   final String? event;
   final int dayFrom;
   final int? dayUntil;
@@ -920,20 +1080,25 @@ class GameCard {
   final List<Choice> choices;
 
   bool isAvailable(GameState state) =>
-      phase == state.phase &&
+      !state.lockedCards.contains(id) &&
+      (phase == null || phase!.isEmpty || phase == state.phase) &&
+      (event == null || event!.isEmpty || state.activeEvents.contains(event)) &&
       state.day >= dayFrom &&
-      (dayUntil == null || state.day <= dayUntil!);
+      (dayUntil == null || state.day <= dayUntil!) &&
+      conditions.every((condition) => condition.evaluate(state));
 }
 
 class Choice {
   Choice({
     required this.id,
+    required this.title,
     required this.text,
     required this.conditions,
     required this.effects,
   });
   factory Choice.fromJson(Map<String, dynamic> json) => Choice(
     id: json['id'] as String? ?? '',
+    title: json['title'] as String? ?? '',
     text: json['text'] as String? ?? '',
     conditions:
         (json['conditions'] as List<dynamic>? ?? [])
@@ -945,9 +1110,10 @@ class Choice {
             .toList(),
   );
   factory Choice.empty() =>
-      Choice(id: '', text: 'No choice authored', conditions: [], effects: []);
+      Choice(id: '', title: 'Untitled choice', text: 'No choice authored', conditions: [], effects: []);
 
   final String id;
+  final String title;
   final String text;
   final List<Condition> conditions;
   final List<Effect> effects;
@@ -981,6 +1147,12 @@ class Condition {
       return operator == 'not_exists'
           ? !state.flags.contains(value)
           : state.flags.contains(value);
+    if (type == 'card') {
+      final cardId = id ?? '';
+      final completed = state.completedCards.contains(cardId) ||
+          state.unlockedCards.contains(cardId);
+      return operator == 'not_completed' ? !completed : completed;
+    }
     if (type == 'stat') {
       final left = state.stats[id] ?? 0;
       final right = (value as num? ?? 0).toInt();
@@ -1034,6 +1206,11 @@ class GameState {
     required this.stats,
     required this.flags,
     required this.activeEvents,
+    required this.seenCards,
+    required this.completedCards,
+    required this.unlockedCards,
+    required this.lockedCards,
+    this.queuedCardId,
   });
 
   factory GameState.fromContent(ContentBundle content) => GameState(
@@ -1044,7 +1221,11 @@ class GameState {
     activeEvents: {
       for (final event in content.events.where((event) => event.active))
         event.id,
-    },
+      },
+    seenCards: {},
+    completedCards: {},
+    unlockedCards: {},
+    lockedCards: {},
   );
 
   factory GameState.fromJson(Map<String, dynamic> json) => GameState(
@@ -1061,6 +1242,19 @@ class GameState {
         (item) => item.toString(),
       ),
     ),
+    seenCards: Set<String>.from(
+      (json['seenCards'] as List<dynamic>? ?? []).map((item) => item.toString()),
+    ),
+    completedCards: Set<String>.from(
+      (json['completedCards'] as List<dynamic>? ?? []).map((item) => item.toString()),
+    ),
+    unlockedCards: Set<String>.from(
+      (json['unlockedCards'] as List<dynamic>? ?? []).map((item) => item.toString()),
+    ),
+    lockedCards: Set<String>.from(
+      (json['lockedCards'] as List<dynamic>? ?? []).map((item) => item.toString()),
+    ),
+    queuedCardId: json['queuedCardId'] as String?,
   );
 
   String phase;
@@ -1068,6 +1262,11 @@ class GameState {
   Map<String, int> stats;
   Set<String> flags;
   Set<String> activeEvents;
+  Set<String> seenCards;
+  Set<String> completedCards;
+  Set<String> unlockedCards;
+  Set<String> lockedCards;
+  String? queuedCardId;
 
   GameState copy() => GameState(
     phase: phase,
@@ -1075,6 +1274,11 @@ class GameState {
     stats: Map<String, int>.from(stats),
     flags: Set<String>.from(flags),
     activeEvents: Set<String>.from(activeEvents),
+    seenCards: Set<String>.from(seenCards),
+    completedCards: Set<String>.from(completedCards),
+    unlockedCards: Set<String>.from(unlockedCards),
+    lockedCards: Set<String>.from(lockedCards),
+    queuedCardId: queuedCardId,
   );
 
   void apply(List<Effect> effects, ContentBundle content) {
@@ -1093,8 +1297,10 @@ class GameState {
                 value: 0,
                 min: 0,
                 max: 100,
+                lockedPhases: const [],
               ),
         );
+        if (stat.lockedPhases.contains(phase)) continue;
         stats[statId] =
             (effect.operation == 'set'
                     ? amount.clamp(stat.min, stat.max)
@@ -1117,6 +1323,22 @@ class GameState {
             effect.operation == 'set'
                 ? (effect.value as num? ?? day).toInt()
                 : day + (effect.value as num? ?? 0).toInt();
+      } else if (effect.type == 'card') {
+        final cardId = effect.value?.toString() ?? '';
+        if (effect.operation == 'unlock') {
+          unlockedCards.add(cardId);
+          lockedCards.remove(cardId);
+        }
+        if (effect.operation == 'lock') {
+          lockedCards.add(cardId);
+          unlockedCards.remove(cardId);
+          if (queuedCardId == cardId) queuedCardId = null;
+        }
+        if (effect.operation == 'trigger') {
+          unlockedCards.add(cardId);
+          lockedCards.remove(cardId);
+          queuedCardId = cardId;
+        }
       }
     }
   }
@@ -1127,6 +1349,11 @@ class GameState {
     'stats': stats,
     'flags': flags.toList(),
     'activeEvents': activeEvents.toList(),
+    'seenCards': seenCards.toList(),
+    'completedCards': completedCards.toList(),
+    'unlockedCards': unlockedCards.toList(),
+    'lockedCards': lockedCards.toList(),
+    'queuedCardId': queuedCardId,
   };
 
   static Future<GameState> load(ContentBundle content) async {

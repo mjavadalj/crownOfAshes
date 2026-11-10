@@ -30,9 +30,20 @@ class ReliquaryFrame extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1;
     final outer = Offset.zero & size;
-    canvas.drawPath(_outline(outer.deflate(5), button ? 12 : 18), pen);
-    pen.color = color.withValues(alpha: .45);
-    canvas.drawPath(_outline(outer.deflate(9), button ? 8 : 14), pen);
+    if (button) {
+      canvas.drawPath(_outline(outer.deflate(5), 12), pen);
+      pen.color = color.withValues(alpha: .45);
+      canvas.drawPath(_outline(outer.deflate(9), 8), pen);
+    } else {
+      // A continuous rounded stock edge with an inset engraved rail reads as
+      // a held playing card, while the corner caps carry the gothic character.
+      canvas.drawRRect(RRect.fromRectAndRadius(outer.deflate(2), const Radius.circular(17)),
+        Paint()..color = const Color(0xFF30231C)..style = PaintingStyle.stroke..strokeWidth = 4);
+      canvas.drawRRect(RRect.fromRectAndRadius(outer.deflate(5), const Radius.circular(14)), pen..strokeWidth = 1.5);
+      canvas.drawRRect(RRect.fromRectAndRadius(outer.deflate(10), const Radius.circular(10)),
+        pen..color = color.withValues(alpha: .6)..strokeWidth = .8);
+      canvas.drawPath(_outline(outer.deflate(13), 20), pen..color = color.withValues(alpha: .35));
+    }
     // Broken highlights give the brass an irregular, worn edge at every scale.
     final random = math.Random(73);
     for (var i = 0; i < (size.height + size.width) / 5; i++) {
@@ -87,12 +98,24 @@ class ReliquaryFrame extends CustomPainter {
         pen,
       );
       canvas.drawCircle(const Offset(4, 4), 2, pen);
+      if (!button) {
+        final cap = Path()
+          ..moveTo(-3, 35)..lineTo(-3, 9)..quadraticBezierTo(-3, -3, 9, -3)
+          ..lineTo(35, -3)..lineTo(26, 3)..cubicTo(16, 3, 17, 15, 9, 17)
+          ..cubicTo(4, 18, 4, 27, -3, 35)..close();
+        canvas.drawPath(cap, Paint()..color = const Color(0xFF201817));
+        canvas.drawPath(cap, pen..color = color..strokeWidth = 1.1);
+        canvas.drawPath(Path()..moveTo(0, 26)..cubicTo(16, 17, 0, 5, 19, 4)
+          ..moveTo(5, 19)..cubicTo(21, 14, 14, 6, 29, 0)
+          ..moveTo(6, 6)..lineTo(11, 3)..lineTo(14, 6)..lineTo(11, 10)..close(), pen);
+        canvas.drawCircle(const Offset(11, 6), 1.2, Paint()..color = const Color(0xFFD0AE7C));
+      }
       canvas.restore();
     }
-    drawFinial(canvas, Offset(size.width / 2, 6), button ? 7 : 16, color);
+    drawFinial(canvas, Offset(size.width / 2, button ? 6 : 14), button ? 7 : 11, color);
     drawFinial(
       canvas,
-      Offset(size.width / 2, size.height - 6),
+      Offset(size.width / 2, size.height - (button ? 6 : 14)),
       button ? 6 : 10,
       color,
     );
@@ -135,6 +158,30 @@ class ReliquaryFrame extends CustomPainter {
   @override
   bool shouldRepaint(ReliquaryFrame oldDelegate) =>
       button != oldDelegate.button || color != oldDelegate.color;
+}
+
+/// The illustration has its own hard metal sill, independent of the choice divider.
+class ArtworkSeam extends CustomPainter {
+  const ArtworkSeam();
+  @override
+  void paint(Canvas canvas, Size size) {
+    const brass = Color(0xFF99764E);
+    final pen = Paint()..color = brass..strokeWidth = 1.3;
+    final middle = size.width / 2;
+    for (final y in [1.0, 5.0]) {
+      pen.color = brass.withValues(alpha: y == 1 ? .9 : .4);
+      canvas.drawLine(Offset(0, y), Offset(middle - 12, y), pen);
+      canvas.drawLine(Offset(middle + 12, y), Offset(size.width, y), pen);
+    }
+    for (final x in [5.0, size.width - 5]) {
+      ReliquaryFrame.drawFinial(canvas, Offset(x, 3), 7, brass);
+    }
+    canvas.drawPath(Path()..moveTo(middle - 14, 1)..lineTo(middle, 19)
+      ..lineTo(middle + 14, 1)..close(), Paint()..color = const Color(0xFF100D0E));
+    ReliquaryFrame.drawFinial(canvas, Offset(middle, 6), 14, brass);
+  }
+  @override
+  bool shouldRepaint(ArtworkSeam oldDelegate) => false;
 }
 
 class ReliquaryDivider extends CustomPainter {
